@@ -85,6 +85,7 @@ button:focus-visible{outline:3px solid var(--sodium);outline-offset:2px}
 @keyframes buzz{0%,91%,95%,100%{opacity:1}93%{opacity:.35}}
 #title p{margin:0;font-size:4.5cqw;line-height:1.8;font-weight:600;text-shadow:0 0 3cqw #000}
 #title small{font-size:3.4cqw;color:var(--dim)}
+.ghost{background:transparent;color:var(--sodium);border:2px solid var(--sodium);border-radius:1.6cqw;padding:2.6cqw 7cqw;font-size:4.6cqw;font-weight:800}
 .primary{background:var(--sodium);color:#141006;border:0;border-radius:1.6cqw;padding:3.4cqw 9cqw;font-size:5.4cqw;font-weight:900}
 
 /* Shift receipt ending */
@@ -117,7 +118,7 @@ button:focus-visible{outline:3px solid var(--sodium);outline-offset:2px}
   <div id="scrim"></div>
   <div id="cap" role="status" aria-live="polite"></div>
   <div id="alert" hidden><h2>هشدار اضطراری</h2><h3 id="alert-sub"></h3><ol id="rules"></ol></div>
-  <div id="note" hidden><p>نذار بیاد داخل.<br>اون قبلاً هم سراغ من اومده.</p><time id="note-date"></time></div>
+  <div id="note" hidden><p id="note-text"></p><time id="note-date"></time></div>
   <div id="choice" hidden>
     <p id="rule"></p><h2 id="q"></h2>
     <div id="bar"><div id="fill"></div></div>
@@ -127,6 +128,7 @@ button:focus-visible{outline:3px solid var(--sodium);outline-offset:2px}
     <h1>کیلومتر ۲۱۴</h1>
     <p>یک شب. یک در شیشه‌ای.<br>تصمیمش با توئه، و وقتت کمه.</p>
     <button id="start" class="primary" type="button">شیفتت رو شروع کن</button>
+    <button id="resume" class="ghost" type="button" hidden>ادامه: شب دوم</button>
     <small>با هدفون بهتره. لمس صفحه، نوشته رو رد می‌کنه.</small>
   </div>
   <div id="end" hidden></div>
@@ -151,8 +153,8 @@ function faDate(offset){
 function store(k,v){try{if(v===undefined)return localStorage.getItem(k);localStorage.setItem(k,v)}catch(e){return null}}
 
 /* ---------- state ---------- */
-const S0=()=>({clock:123,lights:"on",back:false,looked:false,spoke:false,water:90,chips:400,log:[]});
-const V0=()=>({shot:"highway",lamps:14,car:1100,officer:0,oX:360,oS:1.32,paper:0,door:0,door2:0,shadow:0,hand:0,radio:0,dawn:0,black:0,flash:0,shake:0,speak:0,youSpeak:0,fear:.05,phone:0,cabin:0,knockT:-9999,knockK:""});
+const S0=()=>({night:1,clock:123,lights:"on",back:false,looked:false,spoke:false,water:90,chips:400,log:[]});
+const V0=()=>({shot:"highway",lamps:14,car:1100,officer:0,oX:360,oS:1.32,paper:0,door:0,door2:0,shadow:0,hand:0,radio:0,dawn:0,black:0,flash:0,shake:0,speak:0,youSpeak:0,fear:.05,phone:0,cabin:0,knockT:-9999,knockK:"",day:0,dome:0,driver:1,holder:0,mirror:0,broken:0,feet:1,sign:0,sroom:0});
 let S=S0(),V=V0(),run=0,skip=null,checkpoint=null,tweens=[];
 
 function wait(ms,my,skippable){
@@ -173,10 +175,10 @@ const LIGHT={on:"روشن",fridge:"یخچال",off:"خاموش"};
 function hud(){
   const h=Math.floor(S.clock/60)%24,m=S.clock%60;
   $("h-clock").textContent=fa(String(h).padStart(2,"0")+":"+String(m).padStart(2,"0"));
-  $("h-light").textContent=LIGHT[S.lights];
+  $("h-light").textContent=V.day>.5?"روز":LIGHT[S.lights];
   $("h-water").textContent=fa(S.water);
   $("h-chips").textContent=fa(S.chips);
-  $("hud-day").textContent="شب "+fa(1)+" از "+fa(7)+" · "+faDate(0);
+  $("hud-day").textContent="شب "+fa(S.night)+" از "+fa(7)+" · "+faDate(0);
 }
 
 /* ---------- audio (all generated in the browser) ---------- */
@@ -213,6 +215,8 @@ function burst(dur,vol,freq,kind,at,Q){
 }
 const SFX={
   clunk(){tone(70,.22,.4);burst(.05,.3,1500)},
+  slam(){tone(58,.5,1);burst(.2,1,700,"lowpass")},
+  shatter(){burst(.12,1,1800,"bandpass",0,.8);[.03,.09,.16,.24,.33,.45].forEach((a,i)=>burst(.25,.5-i*.06,5200+i*500,"highpass",a));tone(90,.3,.6)},
   alert(){for(let i=0;i<3;i++){[853,960].forEach(f=>{
     const c=A.ctx;if(!c)return;const t=c.currentTime+i*.62,o=c.createOscillator(),g=c.createGain();
     o.type="square";o.frequency.value=f;g.gain.setValueAtTime(.05,t);g.gain.setValueAtTime(0,t+.5);o.connect(g);g.connect(A.master);o.start(t);o.stop(t+.52)})}
@@ -285,8 +289,14 @@ async function showAlert(lines,my,keepPrev){
   await wait(voiceDur("alert",lines[0].t)?1600:3400,my,true);
   $("alert").hidden=true;await wait(160,my);
 }
-async function showNote(my){
-  $("note-date").textContent=faDate(1)+"، شب";
+const NOTES=[
+  {lines:["نذار بیاد داخل.","اون قبلاً هم سراغ من اومده."],date:()=>faDate(1)+"، شب، ساعت ۳:۴۰"},
+  {lines:["قانون ۴:","هرچی که شد به ماشین نگاه نکن."],date:()=>faDate(2)+"، شب، ساعت ۲:۱۰"},
+];
+async function showNote(my,i){
+  const n=NOTES[i||0],p=$("note-text");p.textContent="";
+  n.lines.forEach((l,k)=>{if(k)p.append(document.createElement("br"));p.append(l)});
+  $("note-date").textContent=n.date();
   $("note").hidden=false;SFX.paper();
   await wait(5200,my,true);
 }
@@ -332,6 +342,15 @@ const lampsOut={run:async my=>{
 const elevenMinutes={run:async my=>{
   while(S.clock<205){S.clock++;hud();SFX.tick();await wait(430,my,false)}
 }};
+const dayPass={run:async my=>{
+  /* the day goes by on the board: fifteen minutes a step, and the stock runs down with it */
+  for(let i=1;i<=48;i++){
+    await wait(140,my,false);
+    if(S.clock>=1170)return;
+    S.clock=450+i*15;S.chips=399-Math.round(29*i/48);S.water=89-Math.round(6*i/48);hud();
+  }
+}};
+const toThreeForty={run:async my=>{await wait(1200,my,false);if(S.clock<220){S.clock=219;hud();SFX.tick()}}};
 const O=(t,hold)=>({say:t,who:"officer",hold});
 const R=t=>({say:t,who:"radio"});
 const N={
@@ -562,8 +581,8 @@ const N={
   ],go:"dawn2"},
 
   dawn2:{beats:[
-    {shot:"door",clock:352,tension:0,set:{water:89,chips:399},tw:{dawn:[1,3500],fear:[.5,2000]},v:{car:-900,hand:1,officer:0,door:0,door2:0,shadow:0}},
-    {say:"ساعت پنج و پنجاه و دو دقیقه. ماشین رفته."},
+    {shot:"door",clock:352,tension:0,set:{water:89,chips:399},tw:{dawn:[1,3500],fear:[.5,2000]},v:{hand:1,officer:0,door:0,door2:0,shadow:0}},
+    {say:"ساعت پنج و پنجاه و دو دقیقه. افسر رفته."},
     {say:"روی شیشه، از بیرون، جای یه دست مونده."},
     {shot:"hero"},
     {say:"گوشیت دوباره می‌لرزه."},
@@ -572,6 +591,177 @@ const N={
       {t:"کمک تا ۶ روز دیگر می‌رسد."},
       {t:"۵. اگر دست‌خط خودتان را دیدید، باور نکنید.",isNew:true}],my)},
   ],end:s=>s.back?"dawn":"cold"},
+
+  /* ---- night two ---- */
+  day2:{cp:true,beats:[
+    {shot:"watch",hard:true,v:{day:1,dome:0,driver:1,holder:0,feet:0,paper:0,sign:0,sroom:0,door:0,door2:0,shadow:0,officer:0,hand:0,black:0,fear:.3,dawn:0,mirror:0},clock:450,tension:0},
+    {say:"روز شده."},
+    {say:"پلیسی در کار نیست. ولی ماشینش هنوز بیرونه."},
+    {shot:"driver"},
+    {say:"یه نفر توی صندلی راننده نشسته."},
+    {say:"داره به تو نگاه می‌کنه."},
+    {wait:1300},
+    {say:"تکون نمی‌خوره."},
+    {shot:"watch"},
+    {spawn:dayPass.run,say:"کل روز نگاهش می‌کنی و اون تکون نمی‌خوره.",hold:6900},
+    {clock:1170,set:{water:83,chips:370}},
+    {shot:"hero",tw:{fear:[.55,900]}},
+    {say:"از استرس، همون روز اول بیست و نه بسته چیپس می‌خوری و شش بطری آب."},
+    {shot:"watch",tw:{day:[0,2800]},tension:.05},
+    {say:"بعد شب می‌شه.",hold:3000},
+  ],choice:{
+    /* side path one: where you spend the night, and the night-one lights decide what that is worth */
+    q:"شب رو کجا می‌گذرونی؟",time:8,
+    options:[
+      {label:"پشت میز",set:{spot2:"counter"},log:"شب رو پشت میز گذروندی",beats:[
+        {shot:"peek"},{say:"پشت میز قوز می‌کنی. از اینجا ماشین فقط یه سایه‌ست."}]},
+      {label:"توی یخچال نوشیدنی",set:{spot2:"fridge"},log:"شب رو توی یخچال گذروندی",beats:[
+        {shot:"fridge"},
+        {if:s=>s.lights==="off",say:"در یخچال رو از تو می‌کشی. تاریکه، چون دیشب همه‌چی رو خاموش کردی."},
+        {if:s=>s.lights!=="off",say:"در یخچال رو از تو می‌کشی. چراغش هنوز روشنه."}]}],
+    timeout:{set:{spot2:"glass"},log:"شب رو دم شیشه گذروندی",beats:[{say:"از جات تکون نمی‌خوری. صورتت هنوز رو به شیشه‌ست."}]}
+  },go:"note2"},
+
+  note2:{cp:true,beats:[
+    {shot:"hero",clock:195,tw:{fear:[.65,900]}},
+    {say:"یادت میاد دست‌خط خودت چی گفته بود."},
+    {run:my=>showNote(my,0)},
+    {run:async()=>hideNote()},
+    {say:"تاریخش مال امشب بود. ساعت سه و چهل دقیقه."},
+    {shot:"floor",clock:218,tension:.12,v:{paper:0,feet:0}},
+    {spawn:toThreeForty.run,wait:2400},
+    {clock:220,sfx:"paper",tw:{paper:[1,1500]}},
+    {say:"دقیقاً ساعت سه و چهل دقیقه، از زیر در یه برگه میاد تو.",hold:3000},
+    {if:s=>s.spot2==="glass",say:"از پشت شیشه نگاه می‌کنی. پشت در هیچ‌کس نیست."},
+    {run:my=>showNote(my,1)},
+    {say:"دست‌خط خودته."},
+    {say:"تاریخش مال فرداشبه. ساعت دو و ده دقیقه."},
+    {run:async()=>hideNote()},
+    {shot:"hero",tw:{fear:[.9,400]},tension:.18},
+    {say:"ولی تو تمام مدت داشتی ماشین رو نگاه می‌کردی."},
+  ],choice:{
+    /* side path two: rule four, the moment it matters */
+    q:"به ماشین نگاه می‌کنی؟",rule:"قانون ۴: هرچی که شد به ماشین نگاه نکن",time:6,
+    options:[
+      {label:"نه، روم رو برمی‌گردونم",set:{rule4:true},log:"قانون ۴ رو رعایت کردی",go:"domeAway"},
+      {label:"آره، نگاه می‌کنم",log:"به ماشین نگاه کردی",go:"domeLook"}],
+    timeout:{log:"چشمت روی ماشین موند",go:"domeLook"}
+  }},
+
+  domeLook:{beats:[
+    {shot:"watch"},{wait:1200},
+    {sfx:"switch",v:{dome:1}},
+    {say:"چراغ توی ماشین روشن می‌شه."},
+    {shot:"driver"},
+    {say:"راننده همون لباس تو رو پوشیده."},
+    {wait:900},
+    {say:"اون دقیقاً شبیه توئه."},
+  ],go:"double2"},
+
+  domeAway:{beats:[
+    {shot:"hero",tw:{fear:[.95,400]}},
+    {say:"روت رو برمی‌گردونی."},
+    {wait:900},
+    {sfx:"switch",v:{dome:1}},
+    {say:"چراغ توی ماشین روشن می‌شه. نورش روی شیشه‌ها می‌افته."},
+    {shot:"reflect"},
+    {say:"توی انعکاس شیشه می‌بینیش. راننده همون لباس تو رو پوشیده."},
+    {wait:900},
+    {say:"اون دقیقاً شبیه توئه."},
+  ],go:"double2"},
+
+  double2:{beats:[
+    {shot:"glass",hard:true,sfx:"sting",v:{flash:.45,sign:0,dome:1}},
+    {wait:3600},
+    {shot:"lobby",hard:true,v:{door2:0,sroom:0,shadow:0},tw:{fear:[1,300]}},
+    {wait:420},
+    {sfx:"creak",v:{door2:1,sroom:1,shake:8}},
+    {wait:800},
+    {if:s=>s.back,say:"چفتش رو خودت بسته بودی."},
+    O("سلام پسرم!"),
+    {tension:.24},
+  ],go:"letin"},
+
+  letin:{cp:true,beats:[{shot:"glass",v:{sign:0}}],choice:{
+    q:"خودت رو راه می‌دی داخل؟",rule:"قانون ۳: برای هیچ‌کس باز نکنید",time:10,
+    options:[
+      {label:"آره، راهش می‌دم",log:"خودت رو راه دادی",go:"letIn2"},
+      {label:"نه، راهش نمی‌دم",log:"خودت رو پشت شیشه نگه داشتی",go:"keepOut2"}],
+    timeout:{log:"تصمیم نگرفتی",go:s=>s.spot2!=="fridge"?"late2":s.lights==="off"?"cold2":"foundLit2"}
+  }},
+
+  /* the episode's main ending, as the author wrote it: do not change */
+  letIn2:{beats:[
+    {sfx:"unlock",tw:{door:[1,500]}},
+    {say:"قفل رو می‌چرخونی."},
+    {shot:"lobby",hard:true,v:{door:0,door2:1,sroom:1,holder:0}},
+    {wait:220},
+    {tw:{holder:[1,420]}},{wait:440},
+    {sfx:"slam",v:{door2:0,sroom:0,shake:12}},
+    {say:"به سرعت می‌ره و در انبار رو محکم می‌بنده."},
+    {say:"خودش پشت در وایمیسه تا پلیس نتونه بیاد تو."},
+    {sfx:"bang",tension:.2},
+    {say:"پلیس با مشت به در می‌کوبه."},
+    {sfx:"bang"},{wait:1300},
+    {sfx:"bang"},
+    {say:"ولی نمی‌تونه بیاد تو."},
+    {sfx:"bang",wait:1500},
+    {clock:352,tension:0,tw:{day:[1,3600],fear:[.5,2500]}},
+    {say:"همزادت تا صبح در رو نگه می‌داره.",hold:4200},
+  ],end:"twin"},
+
+  keepOut2:{beats:[
+    {say:"دستت رو از قفل برمی‌داری."},
+    {sfx:"paper",v:{sign:1}},{wait:2200},
+    {say:"همزادت نوشته‌ش رو پایین میاره و برمی‌گرده سمت ماشین."},
+    {shot:"lobby",hard:true,v:{sroom:1,door2:1,shadow:0},tension:.22},
+    {say:"افسر از تاریکی انبار بیرون میاد."},
+    {v:{sroom:0},tw:{shadow:[1,2800],fear:[1,600]}},
+    {say:"قدم‌هاش هیچ صدایی نداره.",hold:2600},
+    {if:s=>s.rule4,say:"به ماشین نگاه نکردی. ولی اون از اول ماشین نبود."},
+    {say:"برای کسی باز نکردی، پسرم.",who:"shout"},
+    {sfx:"sting",tw:{black:[1,250]}},{wait:600},
+  ],end:"inside"},
+
+  late2:{beats:[
+    {say:"هیچ کاری نکردی."},
+    {sfx:"paper",v:{sign:2}},{wait:2000},
+    {shot:"lobby",hard:true,v:{sroom:0}},
+    {say:"افسر دیگه توی انبار نیست."},
+    {say:"یه دست می‌شینه روی شونه‌ت."},
+    {say:"سلام پسرم.",who:"shout"},
+    {sfx:"sting",tw:{black:[1,250]}},{wait:600},
+  ],end:"late"},
+
+  cold2:{beats:[
+    {say:"هیچ کاری نکردی."},
+    {shot:"fridge"},
+    {say:"توی تاریکی یخچال، نفست رو حبس می‌کنی. اینجا کسی نمی‌تونه ببینتت."},
+    {shot:"glass",hard:true,v:{sign:0,broken:0}},
+    {wait:500},
+    {sfx:"shatter",v:{broken:1,shake:14,flash:.25}},
+    {say:"همزادت شیشه رو می‌شکنه و میاد تو."},
+    {shot:"lobby",hard:true,v:{door2:1,sroom:1,holder:0}},
+    {wait:220},
+    {tw:{holder:[1,420]}},{wait:440},
+    {sfx:"slam",v:{door2:0,sroom:0,shake:12}},
+    {say:"می‌دوه و در انبار رو محکم می‌بنده."},
+    {sfx:"bang",tension:.2},
+    {say:"افسر با مشت به در می‌کوبه. ولی نمی‌تونه بیاد بیرون."},
+    {sfx:"bang",wait:1500},
+    {clock:352,tension:0,tw:{day:[1,3600],fear:[.5,2500]}},
+    {say:"از توی یخچال می‌بینیش. همزادت تا صبح در رو نگه می‌داره.",hold:4200},
+  ],end:"cold2"},
+
+  foundLit2:{beats:[
+    {say:"هیچ کاری نکردی."},
+    {sfx:"paper",v:{sign:2}},{wait:2000},
+    {shot:"fridge",tw:{fear:[1,300]}},
+    {say:"چراغ یخچال روشنه. از بیرون مثل یه ویترین معلومی."},
+    {sfx:"knock"},{wait:900},
+    {say:"سلام پسرم.",who:"shout"},
+    {sfx:"sting",tw:{black:[1,250]}},{wait:600},
+  ],end:"found2"},
 };
 
 const ENDS={
@@ -581,6 +771,11 @@ const ENDS={
   two:{name:"دو نفر",blurb:"بیرون رفتن قانون اول رو شکست."},
   cold:{name:"سردخونه",blurb:"خاموش کردن چراغ‌ها نجاتت داد.",alive:true},
   dawn:{name:"شب اول",blurb:"همه درها بسته موند. تا اینجا زنده‌ای.",alive:true},
+  twin:{name:"همزاد",blurb:"خودت رو راه دادی. تا صبح در رو نگه داشت.",alive:true},
+  inside:{name:"از قبل داخل",blurb:"همزادت رو راه ندادی. کسی نموند که در رو نگه داره."},
+  cold2:{name:"شیشهٔ شکسته",blurb:"توی تاریکی قایم شدی. همزادت شیشه رو شکست تا بیاد تو.",alive:true},
+  found2:{name:"ویترین",blurb:"یخچال روشن بود. دوباره."},
+  late:{name:"سلام پسرم",blurb:"وقتی تصمیم نگیری، یکی از اون دو تا می‌گیره."},
 };
 const ALL=Object.keys(ENDS);
 
@@ -632,6 +827,12 @@ function begin(){
   audioInit();run++;clearUI();S=S0();V=V0();checkpoint=null;resetSprings();
   $("hud").hidden=false;hud();humFor();level(A.dread,0);play("intro",run);
 }
+function night2(){
+  audioInit();voiceLoad();run++;clearUI();
+  let p={};try{p=JSON.parse(store("km214-n1")||"{}")}catch(e){}
+  S={...S0(),...p,night:2,clock:450,water:89,chips:399,lights:p.lights||"off",log:[]};V=V0();V.shot="watch";V.day=1;checkpoint=null;resetSprings();
+  $("hud").hidden=false;hud();humFor();level(A.dread,0);play("day2",run);
+}
 function retry(){
   if(!checkpoint)return begin();
   run++;clearUI();S=clone(checkpoint.S);V=clone(checkpoint.V);resetSprings();
@@ -645,13 +846,17 @@ function showEnd(key){
   const end=$("end");end.textContent="";end.hidden=false;
   const r=document.createElement("div");r.id="receipt";
   const add=(tag,txt,cls)=>{const x=document.createElement(tag);x.textContent=txt;if(cls)x.className=cls;return x};
-  r.append(add("p","رسید شیفت · کیلومتر ۲۱۴ · شب ۱","head"),add("h2",e.name),add("p",e.blurb,"blurb"));
+  r.append(add("p","رسید شیفت · کیلومتر ۲۱۴ · شب "+fa(S.night),"head"),add("h2",e.name),add("p",e.blurb,"blurb"));
   const ul=document.createElement("ul");S.log.forEach(l=>ul.append(add("li",l)));r.append(ul);
   const t=document.createElement("div");t.className="tally";
   t.append(add("span","پایان‌هایی که دیدی"),add("span",fa(seen.length)+" از "+fa(ALL.length)));r.append(t);
-  if(e.alive)r.append(add("p","شب دوم: به‌زودی","next"));
+  if(e.alive&&S.night>1)r.append(add("p","شب سوم: به‌زودی","next"));
   const bs=document.createElement("div");bs.id="end-btns";
-  const b1=add("button","برگرد به آخرین تصمیم","go");b1.type="button";b1.id="retry";b1.onclick=ev=>{ev.stopPropagation();retry()};
+  if(e.alive&&S.night===1){
+    store("km214-n1",JSON.stringify({lights:S.lights,back:S.back,looked:S.looked}));
+    const bn=add("button","برو سراغ شب دوم","go");bn.type="button";bn.id="next-night";bn.onclick=ev=>{ev.stopPropagation();night2()};bs.append(bn);
+  }
+  const b1=add("button","برگرد به آخرین تصمیم",e.alive&&S.night===1?"":"go");b1.type="button";b1.id="retry";b1.onclick=ev=>{ev.stopPropagation();retry()};
   const b2=add("button","شیفت رو از اول شروع کن");b2.type="button";b2.id="again";b2.onclick=ev=>{ev.stopPropagation();begin()};
   bs.append(b1,b2);r.append(bs);end.append(r);
 }
@@ -707,11 +912,11 @@ const EASE={
   back:p=>1+2.7*(p-1)**3+1.7*(p-1)**2,
   fear:p=>1-(1-p)**4
 };
-const CURVE={officer:"linear",oS:"linear",shadow:"linear",car:"brake",door:"door",door2:"creak",paper:"shove",phone:"back",fear:"fear",black:"in",dawn:"sine",cabin:"sine"};
+const CURVE={holder:"in",officer:"linear",oS:"linear",shadow:"linear",car:"brake",door:"door",door2:"creak",paper:"shove",phone:"back",fear:"fear",black:"in",dawn:"sine",cabin:"sine"};
 
 /* Each seam is chosen: hard on impacts, a whip or tilt where the space connects, a push through the glass. */
 const SEAM={
-  "front>hero":"push","hero>front":"pull","front>cabin":"push","hero>cabin":"push",
+  "watch>driver":"push","driver>watch":"pull","hero>watch":"whipL","hero>reflect":"push","lobby>glass":"whipL","front>hero":"push","hero>front":"pull","front>cabin":"push","hero>cabin":"push",
   "hero>highway":"whipL","highway>hero":"hard",
   "hero>lobby":"whipR","lobby>hero":"whipL","peek>lobby":"whipR","lobby>peek":"whipL","lobby>fridge":"whipR",
   "hero>peek":"tiltD","peek>hero":"tiltU","door>floor":"tiltD",
@@ -813,7 +1018,7 @@ const KITS={
 };
 KITS.fridgeIn={...KITS.fridge,id:"fridgeIn",skinL:"#b8ecf6",clothL:"#3b8ea2"};
 KITS.mirror={...KITS.off,id:"mirror",skin:"#7f96aa",skinL:"#c3d8ec",skinS:"#5c7183",skinD:"#3f5060",hair:"#27333f",hairL:"#3b4c5c",cloth:"#3b4f62",clothL:"#6d879e",clothS:"#28394a",strap:"#7f96aa",strapS:"#5c7183",eye:"#ffffff"};
-const kit=()=>KITS[S.lights];
+const kit=()=>KITS[pose()];
 const mirrored=(k,p)=>k.dir===1?p.map(([x,y])=>[-x,y]):p;
 
 /* idle life: blinking, eye darts, breath */
@@ -919,13 +1124,13 @@ function heroBody(c,k){
   const tag=box(76,312,72,30);flat(c,tag,k.tag,{s:.3});ink(c,tag,4,{closed:true,heavy:.4,col:k.line});bar(c,[86,327],[138,327],3,"#555");
 }
 function bust(x,y,s,o){
-  const k=o.k||kit(),br=reduced?0:Math.sin(T*(.0021+V.fear*.0028))*(3+V.fear*3);
-  const pose={fear:V.fear,look:o.look===undefined?I.look*.6:o.look,gaze:o.gaze===undefined?I.look:o.gaze,blink:o.blink===undefined?I.blink:o.blink,mouth:V.youSpeak?lips():0};
-  g.save();g.translate(x,y+(br*.5+SPR.flinch)*s);g.scale(s,s);
+  const k=o.k||kit(),br=reduced||o.still?0:Math.sin(T*(.0021+V.fear*.0028))*(3+V.fear*3);
+  const pose_={fear:o.fear===undefined?V.fear:o.fear,look:o.look===undefined?I.look*.6:o.look,gaze:o.gaze===undefined?I.look:o.gaze,blink:o.blink===undefined?I.blink:o.blink,mouth:V.youSpeak&&!o.still?lips():0};
+  g.save();g.translate(x,y+(br*.5+(o.still?0:SPR.flinch))*s);g.scale(s,s);
   put(cel("hb|"+k.id,-290,30,580,660,2,c=>heroBody(c,k)));
-  g.translate(0,br*.4);g.rotate((reduced?0:Math.sin(T*.0009)*.016)+(o.tilt||0));
+  g.translate(0,br*.4);g.rotate((reduced||o.still?0:Math.sin(T*.0009)*.016)+(o.tilt||0));
   put(cel("hh|"+k.id,-135,-190,270,325,2.6,c=>heroHeadBase(c,k)));
-  heroFeatures(g,k,pose);
+  heroFeatures(g,k,pose_);
   g.restore();
 }
 
@@ -1334,11 +1539,11 @@ function paintCabinFrame(c){
   bar(c,[0,812],[W,812],5,INK);bar(c,[0,245],[W,245],5,INK);
   flat(c,[[100,251],[240,251],[50,806],[-90,806]],"rgba(255,255,255,.04)",{s:0});
 }
-function paintFloor(c,mode){
+function paintFloor(c,mode,feet){
   const k=KITS[mode];
   skyBands(c,620);
   flat(c,box(0,430,W,175),"#0b0e15",{ang:-3,s:1.4});
-  [-1,1].forEach(d=>{
+  if(feet)[-1,1].forEach(d=>{
     const X=360+d*92,leg=[[X-44,120],[X+44,120],[X+46,544],[X-46,544]];
     flat(c,leg,"#1e2c52",{s:1.2,ang:-86});
     clipTo(c,leg,()=>flat(c,box(X+(d<0?8:-4),110,50,450),"#101a34",{ang:-86}));
@@ -1419,7 +1624,61 @@ function paintPhone(c){
   ink(c,b,6.5,{closed:true});
   [-1,1].forEach(d=>[40,76,110].forEach(y=>{const f=cat([[d*80,y-14],[d*64,y-12],[d*62,y+8],[d*80,y+12],[d*92,y]],true,4);flat(c,f,"#bd8962",{s:0});ink(c,f,3.6,{closed:true,heavy:.4})}));
 }
-const pose=()=>S.lights;
+const pose=()=>V.day>.5?"on":S.lights;
+
+/* ---- night two plates ---- */
+const CAR_WIN=[[-84,-70],[-42,-112],[8,-112],[8,-70]];
+function paintWatch(c,day){
+  if(day){
+    flat(c,box(0,0,W,300),"#8fb3cc",{ang:-8,s:1.2});
+    flat(c,box(0,280,W,220),"#b9cfd6",{ang:-8,s:1.2});
+    flat(c,box(0,480,W,190),"#e3d8c2",{ang:-8,s:1.2});
+    flat(c,[[0,650],...cat([[0,610],[150,590],[320,624],[470,600],[720,620]],false,5),[720,650]],"#7d8b84",{ang:-6});
+    flat(c,box(0,640,W,640),"#6f7473",{ang:-3,s:1.4});
+    flat(c,[[150,640],[570,640],[720,980],[0,980]],"#7f8482",{ang:-86,s:1});
+    flat(c,cat([[140,852],[372,836],[640,852],[372,886]],true,5),"rgba(20,24,30,.42)",{s:0});
+  }else{
+    skyBands(c,650);starsTo(c,420);
+    flat(c,[[0,650],...cat([[0,610],[150,590],[320,624],[470,600],[720,620]],false,5),[720,650]],"#090e1b",{ang:-6});
+    flat(c,box(0,640,W,640),"#0d1118",{ang:-3,s:1.4});
+    flat(c,[[150,640],[570,640],[720,980],[0,980]],"#12161e",{ang:-86,s:1});
+  }
+}
+function paintWatchFront(c,mode){
+  const k=KITS[mode],on=mode==="on";
+  flat(c,[[20,110],[150,110],[0,720],[0,520]],"rgba(255,255,255,.05)",{s:0});
+  flat(c,box(0,0,W,96),k.wall,{s:1.2,ang:-3});bar(c,[0,96],[W,96],5,INK);
+  [216,504].forEach(x=>{const m=box(x-7,96,14,944);flat(c,m,"#12171b",{s:.3});ink(c,m,4,{closed:true,heavy:.4})});
+  flat(c,box(0,1040,W,240),on?"#36423e":k.wall2,{s:1.2,ang:-3});
+  flat(c,box(0,1040,W,12),on?"#5a6c65":k.wall,{s:.4});
+  bar(c,[0,1040],[W,1040],5,INK);
+}
+function paintCard(c,i){
+  const LINES=[["بذار بیام داخل.","اون الان داخل","پیش توئه."],["باشه."],["دیر شد."]][i];
+  const b=[[-226,-160],[222,-168],[232,160],[-220,166]];
+  flat(c,[[-216,-150],[232,-158],[242,170],[-210,176]],"rgba(0,0,0,.35)",{s:0});
+  flat(c,b,"#c7a877",{ang:-84,s:.8});
+  bar(c,[-160,-128],[-30,-124],2.4,"rgba(90,64,30,.5)");bar(c,[60,130],[190,126],2.4,"rgba(90,64,30,.5)");
+  ink(c,b,6,{closed:true,heavy:.6});
+  const size=LINES.length>1?50:84,gap=LINES.length>1?94:0,y0=LINES.length>1?-82:18;
+  c.direction="rtl";c.textAlign="center";c.font="500 "+size+"px 'Noto Nastaliq Urdu',Vazirmatn,serif";c.fillStyle="#141a33";
+  LINES.forEach((l,n)=>c.fillText(l,0,y0+n*gap));
+  [-1,1].forEach(d=>[-82,-30,22,74].forEach(y=>{const x=d*226,f=cat([[x+d*18,y-16],[x-d*24,y-13],[x-d*28,y+9],[x-d*22,y+15],[x+d*18,y+16]],true,4);flat(c,f,KITS.on.skin,{s:0});ink(c,f,4,{closed:true,heavy:.4})}));
+}
+function paintShards(c){
+  /* the frame survives; the pane is a ring of teeth around a hole */
+  const metal="#1c2428";
+  [[36,110,48,1060],[636,110,48,1060]].forEach(([x,y,w,h])=>{flat(c,box(x,y,w,h),metal,{ang:-90,s:.35});flat(c,box(x+3,y,10,h),"#3f4e54",{s:.5,ang:-90})});
+  flat(c,box(36,96,648,40),metal);bar(c,[84,136],[84,1140],3.6,INK);bar(c,[636,136],[636,1140],3.6,INK);bar(c,[84,136],[636,136],3.6,INK);
+  const r=seeded(57),cx=360,cy=620,edge=[];
+  for(let i=0;i<22;i++){const a=i/22*6.283,R=170+r()*190;edge.push([cx+Math.cos(a)*R,cy+Math.sin(a)*R*1.25])}
+  c.save();c.beginPath();c.rect(84,136,552,1004);c.moveTo(edge[0][0],edge[0][1]);for(let i=edge.length-1;i>=0;i--)c.lineTo(edge[i][0],edge[i][1]);c.closePath();c.clip("evenodd");
+  flat(c,box(84,136,552,1004),"rgba(190,230,205,.09)",{s:0});
+  for(let i=0;i<14;i++){const a=r()*6.283;bar(c,[cx+Math.cos(a)*120,cy+Math.sin(a)*150],[cx+Math.cos(a)*620,cy+Math.sin(a)*700],2.6,"rgba(235,248,245,.55)")}
+  c.restore();
+  ink(c,edge,3.4,{closed:true,col:"rgba(235,248,245,.8)",heavy:.2});
+  for(let i=0;i<9;i++){const x=150+r()*420,y=960+r()*150,p=[[x,y],[x+14+r()*20,y-6-r()*10],[x+22+r()*12,y+4],[x+6,y+8]];flat(c,p,"rgba(220,240,240,.55)",{s:0});ink(c,p,2,{closed:true,heavy:0,col:"rgba(10,14,20,.6)"})}
+}
 
 /* ---- shots ---- */
 const SHOT={
@@ -1490,7 +1749,7 @@ const SHOT={
   },
   floor(t){
     const m=pose();
-    plate("floor|"+m,c=>paintFloor(c,m));
+    plate("floor|"+m+"|"+V.feet,c=>paintFloor(c,m,V.feet));
     if(V.paper>0){
       const p=V.paper,y=628+p*330,s=.42+p*.95;
       g.save();g.beginPath();g.rect(0,634,W,H);g.clip();
@@ -1518,9 +1777,26 @@ const SHOT={
     const d=V.door2;
     plate("lobby",paintLobby);
     g.fillStyle="#0d151b";trace(g,[[210,330],[210+d*300,330],[210+d*300,890],[210,890]]);g.fill();
+    if(V.sroom){
+      /* he stands in the storeroom dark; only the smile and the eyes catch anything */
+      g.save();trace(g,box(210,330,300,560));g.clip();
+      officerAt(360,566,.5,jaw());
+      g.fillStyle="rgba(3,5,8,.66)";g.fillRect(210,330,300,560);
+      g.translate(360,566);g.scale(.5,.5);
+      g.save();g.rotate(TILT);officerMouth(g,OFFICER,Math.round(jaw()*5)/5*JAW);g.restore();
+      gel(g,-38,-10,5,.95);gel(g,40,-6,5,.95);
+      g.restore();
+    }
     g.fillStyle="#2f393f";g.fillRect(210+d*300-5,330,10,560);
-    const off=d>.05;g.fillStyle=off?"#14191c":"#5d686e";g.beginPath();g.arc(480,620,10,0,7);g.fill();
-    g.fillStyle=off?"#14191c":"#39444a";g.fillRect(330,590,70,24);
+    if(d<.9){const off=d>.05;g.fillStyle=off?"#14191c":"#5d686e";g.beginPath();g.arc(480,620,10,0,7);g.fill();
+    g.fillStyle=off?"#14191c":"#39444a";g.fillRect(330,590,70,24)}
+    if(V.holder>0){
+      const p=V.holder;
+      g.save();g.beginPath();g.rect(0,0,W,890+(1-p)*400);g.clip();
+      bust(360,1500-p*1000,3.2-p*2.56,{k:KITS.on,fear:.4,look:0,gaze:0,blink:0});
+      g.restore();
+    }
+    if(V.day>0){g.save();g.globalAlpha=.3*sat(V.day);g.globalCompositeOperation="lighter";g.fillStyle="#d0a08b";g.fillRect(0,0,W,H);g.restore()}
     if(V.shadow>0){
       const s=V.shadow;
       g.save();g.translate(285,900+s*120);g.scale(.62+s*.5,.62+s*.5);
@@ -1528,6 +1804,48 @@ const SHOT={
       if(s>.6){gel(g,-24,-420,3,.95);gel(g,24,-420,3,.95)}
       g.restore();
     }
+  },
+  /* the forecourt from behind your glass: a parked car, somebody in it */
+  watch(t){
+    plate("watchN",c=>paintWatch(c,0));
+    if(V.day>0){g.globalAlpha=sat(V.day);plate("watchD",c=>paintWatch(c,1));g.globalAlpha=1}
+    drawCar(372,830,1.9);
+    g.save();g.translate(372,830);g.scale(1.9,1.9);
+    trace(g,CAR_WIN);g.clip();
+    g.fillStyle=V.dome?"#d9b878":V.day>.5?"#2a3344":"#0c1118";g.fillRect(-100,-120,120,60);
+    if(V.driver)bust(-38,-92,.135,{still:true,k:V.dome?KITS.on:KITS.off,fear:0,look:0,gaze:0,blink:0});
+    g.fillStyle="rgba(255,255,255,"+(V.day>.5?.12:.04)+")";trace(g,[[-46,-116],[-22,-116],[-64,-64],[-90,-64]]);g.fill();
+    g.restore();
+    plate("watchF"+pose(),c=>paintWatchFront(c,pose()));
+  },
+  /* the driver's window, close */
+  driver(t){
+    flatFill("#060a12");
+    put(cel("cab",-40,200,1240,640,den*.9,paintCabin));
+    if(V.dome){g.save();g.globalCompositeOperation="lighter";g.fillStyle="rgba(255,205,120,.2)";trace(g,[[130,250],[370,250],[520,810],[-20,810]]);g.fill();g.restore()}
+    if(V.day>0){g.globalAlpha=.16*sat(V.day);g.fillStyle="#dfe7f2";g.fillRect(0,250,W,560);g.globalAlpha=1}
+    if(V.driver)bust(245,560,1.02,{still:true,k:V.dome?KITS.on:KITS.off,fear:0,look:0,gaze:0,blink:0});
+    plate("cabF",paintCabinFrame);
+  },
+  /* rule four: you only see it in the glass, reversed */
+  reflect(t){
+    SHOT.driver(t);
+    g.fillStyle="rgba(10,18,30,.5)";g.fillRect(0,0,W,H);
+    g.fillStyle="rgba(255,255,255,.05)";trace(g,[[120,0],[260,0],[60,1280],[-80,1280]]);g.fill();
+  },
+  /* the same face, on the wrong side of the glass, with something to say */
+  glass(t){
+    plate("doorBack",paintDoorBack);
+    bust(360,424,1.42,{still:true,k:KITS.on,fear:0,look:0,gaze:0,blink:0});
+    const ok=document.fonts&&document.fonts.check("500 40px 'Noto Nastaliq Urdu'","بذار")?1:0,i=V.sign;
+    if(!V.broken){g.save();g.translate(360,694);g.rotate(-.025);g.scale(.8,.8);put(cel("card"+i+"|"+ok,-250,-185,500,370,2.2,c=>paintCard(c,i)));g.restore();}
+    g.save();g.translate(V.door*640+SPR.x,0);
+    cloud(g,360,540,62,16,"rgba(218,232,238,"+(reduced?.1:.1+Math.sin(t*.0024)*.04)+")");
+    if(V.broken)put(cel("shards",0,90,W,1090,den,paintShards));
+    else put(cel("door",0,90,W,1090,den,paintDoor));
+    g.save();g.translate(150,132);g.rotate(-.035+SPR.s*.5);g.translate(0,64);put(cel("sign",-82,-80,164,106,2.4,paintSign));g.restore();
+    g.restore();
+    if(S.lights!=="on"){g.globalAlpha=S.lights==="off"?.2:.1;g.fillStyle="#000";g.fillRect(0,0,W,H);g.globalAlpha=1}
   },
   /* outside the open door: two of him, perfectly the same */
   pair(t){
@@ -1539,10 +1857,11 @@ const SHOT={
   },
 };
 function flatFill(col){g.fillStyle=col;g.fillRect(-60,-60,W+120,H+120)}
-const FOCUS={hero:[360,560],door:[360,470],pair:[360,500],peek:[440,760],front:[360,560],radio:[360,620],floor:[360,800],fridge:[360,620],cabin:[360,560],lobby:[360,600],highway:[360,620]};
+const FOCUS={reflect:[360,560],watch:[372,760],driver:[245,540],glass:[360,620],hero:[360,560],door:[360,470],pair:[360,500],peek:[440,760],front:[360,560],radio:[360,620],floor:[360,800],fridge:[360,620],cabin:[360,560],lobby:[360,600],highway:[360,620]};
 /* The camera has its own idea per shot; at the door it does not move at all. */
 const CAM={
   hero:a=>[1+.06*sat(a/11000),0,0],
+  watch:()=>[1,0,0],glass:()=>[1,0,0],reflect:a=>[1+.03*sat(a/8000),0,0],driver:a=>[1+.05*sat(a/9000),0,0],
   door:()=>[1,0,0],pair:()=>[1,0,0],front:()=>[1,0,0],cabin:()=>[1,0,0],
   highway:a=>[1+.03*sat(a/16000),0,-12*sat(a/16000)],
   peek:a=>[1.015+Math.sin(a*.00045)*.01,Math.sin(a*.0003)*(4+V.fear*5),0],
@@ -1620,6 +1939,8 @@ $("start").onclick=async e=>{
   btn.disabled=false;btn.textContent="شیفتت رو شروع کن";
   begin();
 };
+if(store("km214-n1"))$("resume").hidden=false;
+$("resume").onclick=e=>{e.stopPropagation();night2()};
 $("stage").addEventListener("pointerup",()=>{if(skip)skip()});
 $("mute").onclick=e=>{
   e.stopPropagation();A.muted=!A.muted;$("mute").textContent=A.muted?"صدا: خاموش":"صدا: روشن";
@@ -1627,7 +1948,7 @@ $("mute").onclick=e=>{
 };
 $("mute").addEventListener("pointerup",e=>e.stopPropagation());
 hud();
-if(document.fonts&&document.fonts.load)document.fonts.load("400 40px Lalezar");
+if(document.fonts&&document.fonts.load){document.fonts.load("400 40px Lalezar");document.fonts.load("500 40px 'Noto Nastaliq Urdu'","بذار بیام داخل")}
 window.kmDebug={G,state:()=>({S,V}),voices:()=>Object.keys(VO.buf).length,cels:()=>({n:CELS.size,mpx:celPx/1e6})};
 </script>
 
