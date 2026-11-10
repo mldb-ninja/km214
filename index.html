@@ -691,7 +691,7 @@ const N={
     q:"خودت رو راه می‌دی داخل؟",rule:"قانون ۳: برای هیچ‌کس باز نکنید",time:10,
     options:[
       {label:"آره، راهش می‌دم",log:"خودت رو راه دادی",go:"letIn2"},
-      {label:"نه، راهش نمی‌دم",log:"خودت رو پشت شیشه نگه داشتی",go:"keepOut2"}],
+      {label:"نه، راهش نمی‌دم",set:{refused:true},log:"خودت رو پشت شیشه نگه داشتی",go:s=>s.spot2!=="fridge"?"keepOut2":s.lights==="off"?"cold2":"foundLit2"}],
     timeout:{log:"تصمیم نگرفتی",go:s=>s.spot2!=="fridge"?"late2":s.lights==="off"?"cold2":"foundLit2"}
   }},
 
@@ -739,7 +739,8 @@ const N={
   ],end:"late"},
 
   cold2:{beats:[
-    {say:"هیچ کاری نکردی."},
+    {if:s=>!s.refused,say:"هیچ کاری نکردی."},
+    {if:s=>s.refused,say:"از یخچال بیرون نمیای."},
     {shot:"fridge"},
     {say:"توی تاریکی یخچال، نفست رو حبس می‌کنی. اینجا کسی نمی‌تونه ببینتت."},
     {shot:"glass",hard:true,v:{sign:0,broken:0}},
@@ -759,7 +760,8 @@ const N={
   ],end:"cold2"},
 
   foundLit2:{beats:[
-    {say:"هیچ کاری نکردی."},
+    {if:s=>!s.refused,say:"هیچ کاری نکردی."},
+    {if:s=>s.refused,say:"از یخچال بیرون نمیای."},
     {sfx:"paper",v:{sign:2}},{wait:2000},
     {shot:"fridge",tw:{fear:[1,300]}},
     {say:"چراغ یخچال روشنه. از بیرون مثل یه ویترین معلومی."},
