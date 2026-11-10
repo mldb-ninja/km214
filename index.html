@@ -154,7 +154,7 @@ function store(k,v){try{if(v===undefined)return localStorage.getItem(k);localSto
 
 /* ---------- state ---------- */
 const S0=()=>({night:1,clock:123,lights:"on",back:false,looked:false,spoke:false,water:90,chips:400,log:[]});
-const V0=()=>({shot:"highway",lamps:14,car:1100,officer:0,oX:360,oS:1.32,paper:0,door:0,door2:0,shadow:0,hand:0,radio:0,dawn:0,black:0,flash:0,shake:0,speak:0,youSpeak:0,fear:.05,phone:0,cabin:0,knockT:-9999,knockK:"",day:0,dome:0,driver:1,holder:0,mirror:0,broken:0,feet:1,sign:0,sroom:0});
+const V0=()=>({shot:"highway",lamps:14,car:1100,officer:0,oX:360,oS:1.32,paper:0,door:0,door2:0,shadow:0,hand:0,radio:0,dawn:0,black:0,flash:0,shake:0,speak:0,youSpeak:0,fear:.05,phone:0,cabin:0,knockT:-9999,knockK:"",day:0,dome:0,driver:1,holder:0,mirror:0,broken:0,walker:0,cardoor:0,card:1,feet:1,sign:0,sroom:0});
 let S=S0(),V=V0(),run=0,skip=null,checkpoint=null,tweens=[];
 
 function wait(ms,my,skippable){
@@ -216,6 +216,7 @@ function burst(dur,vol,freq,kind,at,Q){
 const SFX={
   clunk(){tone(70,.22,.4);burst(.05,.3,1500)},
   slam(){tone(58,.5,1);burst(.2,1,700,"lowpass")},
+  carDoor(){tone(82,.22,.7);burst(.08,.6,1300,"bandpass",0,1.2)},
   shatter(){burst(.12,1,1800,"bandpass",0,.8);[.03,.09,.16,.24,.33,.45].forEach((a,i)=>burst(.25,.5-i*.06,5200+i*500,"highpass",a));tone(90,.3,.6)},
   alert(){for(let i=0;i<3;i++){[853,960].forEach(f=>{
     const c=A.ctx;if(!c)return;const t=c.currentTime+i*.62,o=c.createOscillator(),g=c.createGain();
@@ -590,7 +591,7 @@ const N={
 
   /* ---- night two ---- */
   day2:{cp:true,beats:[
-    {shot:"watch",hard:true,v:{day:1,dome:0,driver:1,holder:0,feet:0,paper:0,sign:0,sroom:0,door:0,door2:0,shadow:0,officer:0,hand:0,black:0,fear:.3,dawn:0,mirror:0},clock:450,tension:0},
+    {shot:"watch",hard:true,v:{day:1,dome:0,driver:1,walker:0,cardoor:0,card:1,holder:0,feet:0,paper:0,sign:0,sroom:0,door:0,door2:0,shadow:0,officer:0,hand:0,black:0,fear:.3,dawn:0,mirror:0},clock:450,tension:0},
     {say:"روز شده."},
     {say:"پلیسی در کار نیست. ولی ماشینش هنوز بیرونه."},
     {shot:"driver"},
@@ -599,6 +600,7 @@ const N={
     {wait:1300},
     {say:"تکون نمی‌خوره."},
     {shot:"watch"},
+    {if:s=>!s.back,say:"اول صبح، در انبار رو قفل می‌کنی."},
     {spawn:dayPass.run,say:"کل روز نگاهش می‌کنی و اون تکون نمی‌خوره.",hold:6900},
     {clock:1170,set:{water:83,chips:370}},
     {shot:"hero",tw:{fear:[.55,900]}},
@@ -667,14 +669,21 @@ const N={
   ],go:"double2"},
 
   double2:{beats:[
-    {shot:"glass",hard:true,sfx:"sting",v:{flash:.45,sign:0,dome:1}},
-    {wait:3600},
-    {shot:"lobby",hard:true,v:{door2:0,sroom:0,shadow:0},tw:{fear:[1,300]}},
-    {wait:420},
-    {sfx:"creak",v:{door2:1,sroom:1,shake:8}},
-    {wait:800},
-    {if:s=>s.back,say:"چفتش رو خودت بسته بودی."},
+    /* no narration here: the player has to watch it happen */
+    {shot:"watch",v:{dome:1,driver:1,walker:0,cardoor:0}},
+    {wait:700},
+    {sfx:"carDoor",v:{driver:0,cardoor:1}},
+    {tw:{walker:[1,2800]},wait:2900},
+    {shot:"glass",hard:true,v:{sign:0,card:0,dome:1}},
+    {wait:500},
+    {tw:{card:[1,800]},wait:500},
+    {sfx:"sting",v:{flash:.3}},
+    {wait:3400},
+    {shot:"lobby",hard:true,v:{door2:0,sroom:1,shadow:0},tw:{fear:[1,300]}},
+    {wait:700},
+    {sfx:"creak",tw:{door2:[1,3000]},wait:3200},
     O("سلام پسرم!"),
+    {say:"ولی درش رو خودت قفل کرده بودی…"},
     {tension:.24},
   ],go:"letin"},
 
@@ -908,7 +917,7 @@ const EASE={
   back:p=>1+2.7*(p-1)**3+1.7*(p-1)**2,
   fear:p=>1-(1-p)**4
 };
-const CURVE={holder:"in",officer:"linear",oS:"linear",shadow:"linear",car:"brake",door:"door",door2:"creak",paper:"shove",phone:"back",fear:"fear",black:"in",dawn:"sine",cabin:"sine"};
+const CURVE={walker:"linear",card:"out",holder:"in",officer:"linear",oS:"linear",shadow:"linear",car:"brake",door:"door",door2:"creak",paper:"shove",phone:"back",fear:"fear",black:"in",dawn:"sine",cabin:"sine"};
 
 /* Each seam is chosen: hard on impacts, a whip or tilt where the space connects, a push through the glass. */
 const SEAM={
@@ -1777,7 +1786,7 @@ const SHOT={
       /* he stands in the storeroom dark; only the smile and the eyes catch anything */
       g.save();trace(g,box(210,330,300,560));g.clip();
       officerAt(360,566,.5,jaw());
-      g.fillStyle="rgba(3,5,8,.66)";g.fillRect(210,330,300,560);
+      g.fillStyle="rgba(2,3,5,.86)";g.fillRect(210,330,300,560);
       g.translate(360,566);g.scale(.5,.5);
       g.save();g.rotate(TILT);officerMouth(g,OFFICER,Math.round(jaw()*5)/5*JAW);g.restore();
       gel(g,-38,-10,5,.95);gel(g,40,-6,5,.95);
@@ -1810,8 +1819,28 @@ const SHOT={
     trace(g,CAR_WIN);g.clip();
     g.fillStyle=V.dome?"#d9b878":V.day>.5?"#2a3344":"#0c1118";g.fillRect(-100,-120,120,60);
     if(V.driver)bust(-38,-92,.135,{still:true,k:V.dome?KITS.on:KITS.off,fear:0,look:0,gaze:0,blink:0});
+    if(V.cardoor&&!V.driver){g.fillStyle="rgba(217,184,120,.35)";g.fillRect(-100,-120,120,60)}
     g.fillStyle="rgba(255,255,255,"+(V.day>.5?.12:.04)+")";trace(g,[[-46,-116],[-22,-116],[-64,-64],[-90,-64]]);g.fill();
     g.restore();
+    if(V.cardoor){
+      /* the driver's door swung out toward you */
+      g.save();g.translate(372,830);g.scale(1.9,1.9);
+      const dp=[[-86,-114],[-40,-128],[-40,-6],[-86,-2]];flat(g,dp,"#10161f",{s:0});
+      flat(g,[[-82,-108],[-44,-120],[-44,-74],[-82,-68]],V.dome?"#3a3426":"#1b2636",{s:0});ink(g,dp,4,{closed:true,heavy:.4});
+      g.restore();
+    }
+    if(V.walker>0){
+      const p=V.walker,step=reduced?0:Math.abs(Math.sin(p*Math.PI*7))*10*(1-p*.4);
+      g.save();g.beginPath();g.rect(0,96,W,944);g.clip();
+      const wx=300+p*60,wy=700-p*150-step,ws=.26+p*1.24,sw=reduced?0:Math.sin(p*Math.PI*7);
+      /* legs: dark work trousers, striding */
+      g.save();g.translate(wx,wy);g.scale(ws,ws);
+      [-1,1].forEach(d=>{const o=d*sw*60,lg=[[d*120-62+o*.3,560],[d*120+62+o*.3,560],[d*110+58+o,1380],[d*110-58+o,1380]];
+        flat(g,lg,"#34405a",{s:.8,ang:-86});ink(g,lg,9,{closed:true,heavy:.4});flat(g,[[d*110-70+o,1380],[d*110+80+o,1380],[d*110+90+o,1440],[d*110-70+o,1440]],"#05070b",{s:0})});
+      g.restore();
+      bust(wx,wy,ws,{still:true,k:KITS.on,fear:0,look:0,gaze:0,blink:0});
+      g.restore();
+    }
     plate("watchF"+pose(),c=>paintWatchFront(c,pose()));
   },
   /* the driver's window, close */
@@ -1834,7 +1863,7 @@ const SHOT={
     plate("doorBack",paintDoorBack);
     bust(360,424,1.42,{still:true,k:KITS.on,fear:0,look:0,gaze:0,blink:0});
     const ok=document.fonts&&document.fonts.check("500 40px 'Noto Nastaliq Urdu'","بذار")?1:0,i=V.sign;
-    if(!V.broken){g.save();g.translate(360,694);g.rotate(-.025);g.scale(.8,.8);put(cel("card"+i+"|"+ok,-250,-185,500,370,2.2,c=>paintCard(c,i)));g.restore();}
+    if(!V.broken&&V.card>0){g.save();g.translate(360,694+(1-V.card)*600);g.rotate(-.025);g.scale(.8,.8);put(cel("card"+i+"|"+ok,-250,-185,500,370,2.2,c=>paintCard(c,i)));g.restore();}
     g.save();g.translate(V.door*640+SPR.x,0);
     cloud(g,360,540,62,16,"rgba(218,232,238,"+(reduced?.1:.1+Math.sin(t*.0024)*.04)+")");
     if(V.broken)put(cel("shards",0,90,W,1090,den,paintShards));
