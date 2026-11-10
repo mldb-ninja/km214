@@ -49,7 +49,7 @@ button:focus-visible{outline:3px solid var(--sodium);outline-offset:2px}
 #cap span{display:inline-block;opacity:0;animation:w .26s forwards;margin-inline-end:.26em}
 @keyframes w{from{opacity:0;transform:translateY(.4em)}to{opacity:1;transform:none}}
 #cap.officer small,#cap.officer p{color:var(--sodium)}
-#cap.radio small,#cap.radio p{color:var(--radio)}
+#cap.radio small,#cap.radio p,#cap.carradio small,#cap.carradio p{color:var(--radio)}
 #cap.you small,#cap.you p{color:var(--tube)}
 #cap.shout small,#cap.shout p{color:var(--alarm)}
 #cap.shout p{font-size:8cqw;font-weight:900}
@@ -160,7 +160,7 @@ function store(k,v){try{if(v===undefined)return localStorage.getItem(k);localSto
 
 /* ---------- state ---------- */
 const S0=()=>({night:1,clock:123,lights:"on",back:false,looked:false,spoke:false,water:90,chips:400,log:[]});
-const V0=()=>({shot:"highway",lamps:14,car:1100,officer:0,oX:360,oS:1.32,paper:0,door:0,door2:0,shadow:0,hand:0,radio:0,dawn:0,black:0,flash:0,shake:0,speak:0,youSpeak:0,fear:.05,phone:0,cabin:0,knockT:-9999,knockK:"",day:0,dome:0,driver:1,holder:0,mirror:0,broken:0,walker:0,cardoor:0,card:1,feet:1,sign:0,sroom:0,ghost:0,notep:0,struggle:0,lunge:0,grab:0,runner2:0,board:0,wbroken:0,shopEmpty:0,fbroken:0,runner:0,keys:0,rear:0,roadman:0});
+const V0=()=>({shot:"highway",lamps:14,car:1100,officer:0,oX:360,oS:1.32,paper:0,door:0,door2:0,shadow:0,hand:0,radio:0,dawn:0,black:0,flash:0,shake:0,speak:0,youSpeak:0,fear:.05,phone:0,cabin:0,knockT:-9999,knockK:"",day:0,dome:0,driver:1,holder:0,mirror:0,broken:0,walker:0,cardoor:0,card:1,feet:1,sign:0,sroom:0,ghost:0,notep:0,struggle:0,lunge:0,grab:0,runner2:0,board:0,wbroken:0,speed:0,cars:0,moving:0,swap4:0,sleep:0,copcar:0,fast:0,radioOn:0,pdoor:0,exit:0,runpov:0,approach:0,shopEmpty:0,fbroken:0,runner:0,keys:0,rear:0,roadman:0});
 let S=S0(),V=V0(),run=0,skip=null,checkpoint=null,tweens=[];
 
 function wait(ms,my,skippable){
@@ -366,7 +366,7 @@ function playVoice(who,text){
 }
 
 /* ---------- on-screen pieces ---------- */
-const WHO={officer:"افسر پلیس",radio:"بی‌سیم",you:"تو",shout:"افسر پلیس",both:"هر دو"};
+const WHO={officer:"افسر پلیس",radio:"بی‌سیم",carradio:"رادیو",you:"تو",shout:"افسر پلیس",both:"هر دو"};
 async function say(b,my){
   const text=val(b.say,S),who=b.who||"narr",cap=$("cap");
   cap.className=who==="both"?"shout":who; cap.textContent="";
@@ -376,7 +376,7 @@ async function say(b,my){
   words.forEach((w,i)=>{const sp=document.createElement("span");sp.textContent=w;sp.style.animationDelay=(i*step*G.speed)+"ms";p.append(sp," ")});
   cap.append(p);cap.style.opacity=1;
   V.speak=(who==="officer"||who==="shout"||who==="both")?1:0;V.youSpeak=who==="you"?1:0;
-  if(who==="radio"){V.radio=1;SFX.static()}
+  if(who==="radio"||who==="carradio"){V.radio=1;SFX.static()}
   if(who==="shout")V.shake=8;
   playVoice(who,text);
   await wait(dur?Math.max(dur+420,b.hold||0):(b.hold||1050+text.length*62),my,true);
@@ -468,7 +468,7 @@ const pounding={stop:true,run:async my=>{
 }};
 function quiet(on){if(A.music)level(A.music,on?0:.5,on?.25:.8);if(on&&A.dread)level(A.dread,0,.3)}
 /* messages land on the phone in your hand (the "phone" shot), not in a box over the picture */
-const PHONE={msgs:[],buzzT:-1e9};
+const PHONE={msgs:[],buzzT:-1e9,dead:false};
 async function showSMS(my,t,from){
   if(from){PHONE.msgs.push({t,out:true});SFX.tick();await wait(2600,my,true);return}
   PHONE.buzzT=performance.now();SFX.buzz();await wait(650,my);
@@ -1029,6 +1029,101 @@ const N={
     {say:"سلام پسرم.",who:"shout"},
     {sfx:"sting",tw:{black:[1,250]}},{wait:600},
   ],end:"rear"},
+
+  /* ---- night four ---- */
+  night4:{cp:true,beats:[
+    {shot:"road",hard:true,v:{speed:1.3,cars:1,dawn:0,day:0,swap4:0,sleep:0,copcar:0,moving:1,fast:0,dome:0,holder:0,door2:0,board:0,rear:0,black:0,fear:.4,radio:0},clock:150,tension:.08},
+    {say:"دیشب با ماشین پلیس، به همراه همزادت فرار کردی."},
+    {say:"توی راه از ماشین‌هایی رد می‌شی که وسط جاده وایسادن."},
+    {say:"همشون خالی‌ان. با درهای باز.",hold:2600},
+    {say:"نزدیک‌ترین شهر دو ساعت راهه. ولی ماشین‌های وسط جاده راه رو بسته‌ان."},
+    {shot:"dirt",hard:true,v:{speed:1,cars:0}},
+    {say:"واسه همین مجبوری از راه‌های فرعی و بیراهه بری."},
+    {shot:"seats",v:{dome:0,moving:1}},
+    {say:"همزادت کل مدت به تو خیره شده."},
+  ],choice:{
+    /* side path one: a bottle of water for him */
+    q:"بهش آب تعارف می‌کنی؟",time:7,
+    options:[
+      {label:"آره، یه بطری بهش می‌دم",set:{gaveWater:true,water:74},log:"به همزادت آب دادی",beats:[
+        {say:"بطری رو می‌گیره. بازش نمی‌کنه. فقط به تو نگاه می‌کنه."}]},
+      {label:"نه",log:"به همزادت آب ندادی",beats:[{say:"چشمت رو به جاده می‌دوزی."}]}],
+    timeout:{log:"به همزادت آب ندادی",beats:[{say:"چشمت رو به جاده می‌دوزی."}]}
+  },go:"night4b"},
+
+  night4b:{beats:[
+    {shot:"phone",hard:true,run:async()=>{PHONE.msgs.length=0;PHONE.dead=true}},
+    {say:"شارژ گوشیت تموم شده."},
+    {say:"حداقل دیگه اون افسر پلیس نمی‌تونه بهت پیام بده."},
+    {shot:"dirt",hard:true,clock:390,v:{speed:1},tw:{dawn:[1,5000]}},
+    {say:"چهار ساعت بعد، خورشید طلوع می‌کنه.",hold:3200},
+    {say:"توی یه جادهٔ ناآشنا داری حرکت می‌کنی و هنوز به هیچ شهری نرسیدی."},
+    {shot:"seats",v:{day:1}},
+    {say:"دو روزه که نخوابیدی."},
+    {say:"با خودت فکر می‌کنی که نور روز باعث می‌شه امن باشه."},
+    {v:{moving:0},say:"برای همین می‌زنی کنار که کمی بخوابی. شاید فقط یک ساعت."},
+  ],choice:{
+    /* side path two: the keys */
+    q:"قبل از خواب، کلید رو از روی ماشین برمی‌داری؟",time:7,
+    options:[
+      {label:"آره، می‌ذارمش توی جیبم",set:{keys4:true},log:"کلید رو برداشتی",beats:[{say:"کلید رو توی جیبت می‌ذاری."}]},
+      {label:"نه، همون‌جا می‌مونه",log:"کلید رو روی ماشین گذاشتی",beats:[{say:"کلید همون‌جا می‌مونه."}]}],
+    timeout:{log:"کلید رو روی ماشین گذاشتی",beats:[{say:"خوابت می‌بره."}]}
+  },go:"night4c"},
+
+  night4c:{beats:[
+    {v:{sleep:1},tw:{black:[1,2600]},wait:2800},
+    {shot:"dirt",hard:true,clock:1210,v:{black:0,dawn:0,day:0,speed:3.4,fast:1,sleep:0},sfx:"heart",tension:.18},
+    {say:"از خواب می‌پری. هوا تاریک شده."},
+    {shot:"seats",hard:true,v:{swap4:1,moving:1,day:0}},
+    {say:"ماشین داره حرکت می‌کنه. تو روی صندلی شاگرد نشستی."},
+    {say:"همزادت داره ماشین رو می‌رونه. با سرعت خیلی زیاد."},
+    {if:s=>s.keys4,say:"کلید هنوز توی جیبته."},
+    {if:s=>s.gaveWater,say:"بطری آبی که بهش دادی، دست‌نخورده روی داشبورده."},
+    {say:"کجا داریم می‌ریم؟",who:"you"},
+    {wait:1600},
+    {say:"جوابی نمی‌ده."},
+    {shot:"carRadio",hard:true,v:{radio:0,radioOn:0}},
+    {wait:700},
+    {sfx:"switch",v:{radioOn:1}},{sfx:"static",wait:700},{sfx:"static",wait:900},
+    {say:"پسرم. می‌دونم کجا داری می‌ری.",who:"carradio"},
+    {shot:"seats"},
+    {say:"به همزادت نگاه می‌کنی. مستقیم جاده رو نگاه می‌کنه."},
+    {shot:"flash",hard:true,v:{flash:.6}},
+    {say:"قبلاً جونت رو نجات داده.",hold:3200},
+    {shot:"seats",hard:true,tension:.24},
+  ],go:"car4"},
+
+  car4:{cp:true,beats:[{shot:"seats",v:{swap4:1,moving:1}}],choice:{
+    q:"توی ماشین می‌مونی، یا ترمز رو می‌کشی و فرار می‌کنی؟",time:10,
+    options:[
+      {label:"توی ماشین می‌مونم",log:"توی ماشین موندی",go:"stay4"},
+      {label:"ترمز رو می‌کشم و فرار می‌کنم",log:"ترمز رو کشیدی و پیاده شدی",go:"out4"}],
+    timeout:{log:"تصمیم نگرفتی",beats:[{say:"هیچ کاری نمی‌کنی."}],go:"stay4"}
+  }},
+
+  /* the episode's main ending, as the author wrote it: do not change */
+  stay4:{beats:[
+    {say:"توی ماشین می‌مونی.",hold:2600},
+    {shot:"dirt",hard:true,v:{speed:3.4,fast:1},tension:.1},
+    {wait:2600},
+  ],end:"stay"},
+
+  out4:{beats:[
+    {shot:"halt",hard:true,sfx:"tires",v:{fast:0,speed:0,car:1000,pdoor:0,exit:0},tw:{car:[360,1500,"brake"]},wait:1600},
+    {say:"ترمز رو می‌کشی. ماشین سُر می‌خوره و وایمیسه."},
+    {sfx:"carDoor",v:{pdoor:1}},
+    {tw:{exit:[1,2400,"linear"]},wait:500},
+    {say:"در رو باز می‌کنی و می‌دوی."},
+    {shot:"dirt",hard:true,v:{speed:.8,fast:0,copcar:0,runpov:1,approach:0},tension:.22},
+    {wait:1400},
+    {v:{copcar:1},tw:{approach:[1,5200,"linear"]}},
+    {say:"کمی جلوتر، توی تاریکی، افسر پلیس با یه ماشین دیگه منتظرته.",hold:3400},
+    {v:{speed:.2}},
+    {if:s=>s.keys4,say:"کلید ماشین هنوز توی جیبته."},
+    {say:"کجا می‌ری، پسرم؟",who:"shout"},
+    {sfx:"sting",tw:{black:[1,250]}},{wait:600},
+  ],end:"other"},
 };
 
 const ENDS={
@@ -1039,6 +1134,8 @@ const ENDS={
   cold:{name:"سردخونه",blurb:"خاموش کردن چراغ‌ها نجاتت داد.",alive:true},
   dawn:{name:"شب اول",blurb:"همه درها بسته موند. تا اینجا زنده‌ای.",alive:true},
   road:{name:"جاده",blurb:"با ماشین افسر فرار کردید.",alive:true},
+  stay:{name:"صندلی شاگرد",blurb:"توی ماشین موندی.",alive:true},
+  other:{name:"ماشین دیگه",blurb:"ترمز رو کشیدی. یکی دیگه جلوتر منتظرت بود."},
   foot:{name:"پیاده",blurb:"ماشین رو گذاشتید. پلیس گرفتتون."},
   rear:{name:"صندلی عقب",blurb:"تصمیم نگرفتی. یکی دیگه هم سوار شده بود."},
   twin:{name:"همزاد",blurb:"خودت رو راه دادی. تا صبح در رو نگه داشت.",alive:true},
@@ -1089,7 +1186,7 @@ async function play(id,my){
   }catch(e){if(e!==CANCEL)throw e}
 }
 function clearUI(){
-  skip=null;stopHeart();stopVoice();$("sms").hidden=true;PHONE.msgs.length=0;quiet(0);pounding.stop=true;tweens=[];mix=1;shotT=performance.now();
+  skip=null;stopHeart();stopVoice();$("sms").hidden=true;PHONE.msgs.length=0;PHONE.dead=false;quiet(0);pounding.stop=true;tweens=[];mix=1;shotT=performance.now();
   ["choice","alert","note","end"].forEach(i=>$(i).hidden=true);
   $("cap").style.opacity=0;$("cap").textContent="";
 }
@@ -1098,11 +1195,11 @@ function begin(){
   $("hud").hidden=false;hud();humFor();level(A.dread,0);play("intro",run);
 }
 /* each episode has its own address (?n=2, ?n=3) and starts as if the earlier ones went down the main path */
-const MAIN_PATH={2:{lights:"off",back:true,looked:false},3:{lights:"off",back:true,looked:false,broken:false}};
+const MAIN_PATH={2:{lights:"off",back:true,looked:false},3:{lights:"off",back:true,looked:false,broken:false},4:{lights:"off",back:true,looked:false,broken:true}};
 let lastStart=null;
 function startFromURL(){
   let n=0;try{n=+(new URLSearchParams(location.search).get("n")||0)}catch(e){}
-  if(n===2)night2(MAIN_PATH[2]);else if(n===3)night3(MAIN_PATH[3]);else begin();
+  if(n===2)night2(MAIN_PATH[2]);else if(n===3)night3(MAIN_PATH[3]);else if(n===4)night4(MAIN_PATH[4]);else begin();
 }
 function night3(p0){
   audioInit();voiceLoad();run++;clearUI();
@@ -1110,6 +1207,14 @@ function night3(p0){
   lastStart=()=>night3(p);
   S={...S0(),...p,night:3,clock:1260,water:83,chips:370,lights:p.lights||"off",log:[]};V=V0();V.shot="lobby";checkpoint=null;resetSprings();
   $("hud").hidden=false;hud();humFor();level(A.dread,0);play("night3",run);
+}
+function night4(p0){
+  audioInit();voiceLoad();run++;clearUI();
+  let p=p0||{};if(!p0)try{p=JSON.parse(store("km214-n3")||"{}")}catch(e){}
+  lastStart=()=>night4(p);
+  S={...S0(),...p,night:4,clock:150,water:75,chips:346,lights:p.lights||"off",log:[]};V=V0();V.shot="road";checkpoint=null;resetSprings();
+  PHONE.dead=false;ROAD.d=0;ROAD.t=0;
+  $("hud").hidden=false;hud();humFor();level(A.dread,0);play("night4",run);
 }
 function night2(p0){
   audioInit();voiceLoad();run++;clearUI();
@@ -1135,7 +1240,7 @@ function showEnd(key){
   const ul=document.createElement("ul");S.log.forEach(l=>ul.append(add("li",l)));r.append(ul);
   const t=document.createElement("div");t.className="tally";
   t.append(add("span","پایان‌هایی که دیدی"),add("span",fa(seen.length)+" از "+fa(ALL.length)));r.append(t);
-  if(e.alive&&S.night>2)r.append(add("p","شب چهارم: به‌زودی","next"));
+  if(e.alive&&S.night>3)r.append(add("p","شب پنجم: به‌زودی","next"));
   const bs=document.createElement("div");bs.id="end-btns";
   if(e.alive&&S.night===1){
     store("km214-n1",JSON.stringify({lights:S.lights,back:S.back,looked:S.looked}));
@@ -1145,7 +1250,11 @@ function showEnd(key){
     store("km214-n2",JSON.stringify({lights:S.lights,back:S.back,broken:key==="cold2"}));
     const bn=add("button","برو سراغ شب سوم","go");bn.type="button";bn.id="next-night";bn.onclick=ev=>{ev.stopPropagation();night3()};bs.append(bn);
   }
-  const b1=add("button","برگرد به آخرین تصمیم",e.alive&&S.night<3?"":"go");
+  if(e.alive&&S.night===3){
+    store("km214-n3",JSON.stringify({lights:S.lights,back:S.back,broken:true}));
+    const bn=add("button","برو سراغ شب چهارم","go");bn.type="button";bn.id="next-night";bn.onclick=ev=>{ev.stopPropagation();night4()};bs.append(bn);
+  }
+  const b1=add("button","برگرد به آخرین تصمیم",e.alive&&S.night<4?"":"go");
   const again=()=>(lastStart||begin)();b1.type="button";b1.id="retry";b1.onclick=ev=>{ev.stopPropagation();retry()};
   const b2=add("button","شیفت رو از اول شروع کن");b2.type="button";b2.id="again";b2.onclick=ev=>{ev.stopPropagation();again()};
   bs.append(b1,b2);r.append(bs);end.append(r);
@@ -1202,7 +1311,7 @@ const EASE={
   back:p=>1+2.7*(p-1)**3+1.7*(p-1)**2,
   fear:p=>1-(1-p)**4
 };
-const CURVE={board:"linear",runner2:"in",grab:"linear",runner:"in",keys:"linear",roadman:"linear",walker:"linear",card:"out",holder:"in",officer:"linear",oS:"linear",shadow:"linear",car:"brake",door:"door",door2:"creak",paper:"shove",phone:"back",fear:"fear",black:"in",dawn:"sine",cabin:"sine"};
+const CURVE={exit:"linear",approach:"linear",speed:"sine",board:"linear",runner2:"in",grab:"linear",runner:"in",keys:"linear",roadman:"linear",walker:"linear",card:"out",holder:"in",officer:"linear",oS:"linear",shadow:"linear",car:"brake",door:"door",door2:"creak",paper:"shove",phone:"back",fear:"fear",black:"in",dawn:"sine",cabin:"sine"};
 
 /* Each seam is chosen: hard on impacts, a whip or tilt where the space connects, a push through the glass. */
 const SEAM={
@@ -2072,6 +2181,122 @@ function paintCarFrontFront(c){
   ink(c,WS,5,{closed:true,heavy:.3});
 }
 
+/* ---- night four: the road, the dirt track, the flashback ---- */
+const ROAD={d:0,t:0};
+function paintDirt(c){
+  skyBands(c,520);starsTo(c,460);
+  const hills=[[0,520],...cat([[0,470],[140,440],[300,486],[420,470],[560,430],[720,470]],false,5),[720,520]];
+  flat(c,hills,"#090e1b",{ang:-6});
+  flat(c,box(0,520,W,760),"#0b0d0c",{ang:-3,s:1.5});
+  const road=[[352,520],[372,520],...cat([[372,520],[420,700],[560,960],[640,1280]],false,6).slice(1),[80,1280],...cat([[80,1280],[210,960],[320,700],[352,520]],false,6).slice(1)];
+  flat(c,road,"#2a241c",{ang:-86,s:1.3});
+  [[358,524,300,1280],[366,524,470,1280]].forEach(([a,b,d,e])=>bar(c,[a,b],[d,e],3,"rgba(0,0,0,.35)"));
+  const r=seeded(17);for(let i=0;i<40;i++){const y=540+r()*700,side=r()<.5?-1:1,x=360+side*(40+(y-520)*.7+r()*120);flat(c,[[x,y],[x+8,y-14-r()*16],[x+16,y]],"#151a12",{s:0})}
+}
+function paintDawnSky(c){
+  flat(c,box(0,0,W,200),"#4c5266",{ang:-8,s:1.2});
+  flat(c,box(0,180,W,200),"#8d7a85",{ang:-8,s:1.2});
+  flat(c,box(0,360,W,170),"#d0a08b",{ang:-8,s:1.2});
+}
+function openDoor(x,y,s,side){
+  g.save();g.translate(x,y);g.scale(s*side,s);
+  flat(g,[[-88,-68],[10,-68],[10,-8],[-88,-8]],"#05070b",{s:0});
+  const dp=[[-88,-114],[-150,-102],[-150,6],[-88,-4]];flat(g,dp,"#10161f",{s:.4});flat(g,[[-92,-108],[-146,-98],[-146,-66],[-92,-70]],"#1b2636",{s:0});ink(g,dp,4,{closed:true,heavy:.4});
+  g.restore();
+}
+function roadScene(t,dirt){
+  const dt=Math.min(50,Math.max(0,t-(ROAD.t||t)));ROAD.t=t;ROAD.d+=V.speed*dt*.00035;
+  if(dirt)plate("dirt",paintDirt);
+  else{plate("highway",paintHighway);g.fillStyle="#14171d";trace(g,[[357,520],[363,520],[369,1220],[351,1220]]);g.fill();}
+  const dw=sat(V.dawn);
+  if(dw>0){g.save();g.beginPath();g.rect(0,0,W,522);g.clip();g.globalAlpha=dw*.9;plate("dawnSky",paintDawnSky);g.restore();
+    g.fillStyle="rgba(210,160,130,"+(.14*dw)+")";g.fillRect(0,520,W,760)}
+  if(!dirt){for(let i=0;i<13;i++){const u=((i+ROAD.d*3)%13)/13,p=u**2.2,q=Math.min(1,u+.5/13)**2.2;
+    g.fillStyle="#7a766a";trace(g,[[359-7*p,520+700*p],[361+7*p,520+700*p],[361+7*q,520+700*q],[359-7*q,520+700*q]]);g.fill()}}
+  /* things going past: abandoned cars on the highway, scrub on the dirt track */
+  const items=[];
+  for(let k=0;k<(dirt?8:4);k++){const z=((ROAD.d*(dirt?1.1:.55)+k/(dirt?8:4))%1);items.push([z,k])}
+  items.sort((a,b)=>a[0]-b[0]).forEach(([z,k])=>{
+    const zz=z*z,side=k%2?1:-1;
+    if(!dirt&&V.cars){const s=.08+zz*1.25,x=360+side*(26+zz*340),y=540+zz*720;drawCar(x,y,s);openDoor(x,y,s,side)}
+    if(dirt){const s=.1+zz*2.2,x=360+side*(70+zz*520),y=530+zz*760;g.fillStyle="#0e120c";g.beginPath();g.ellipse(x,y-30*s,60*s,40*s,0,0,7);g.fill()}
+  });
+  if(V.copcar)darkWait();
+  if(dw<1&&V.speed>0&&!V.runpov){g.save();g.globalCompositeOperation="lighter";g.fillStyle="rgba(255,236,190,"+(.1*(1-dw))+")";trace(g,[[330,640],[390,640],[620,1280],[100,1280]]);g.fill();g.restore()}
+  if(V.fast&&!reduced){g.globalAlpha=.35;g.fillStyle="#cfd6e4";SPEED.forEach(([a,len,w],i)=>{const ph=((t*.004+a)%1),x=i%2?360+ph*380:360-ph*380;g.fillRect(x,560+a*600,w*.6,120*ph+20)});g.globalAlpha=1}
+}
+function flashback(t){
+  const h=V.holder,d=V.door2,n=V.notep;V.holder=1;V.door2=0;V.notep=0;SHOT.lobby(t);V.holder=h;V.door2=d;V.notep=n;
+  g.save();g.globalCompositeOperation="color";g.fillStyle="#9a7a50";g.fillRect(0,0,W,H);g.restore();
+  g.fillStyle="rgba(60,40,15,.22)";g.fillRect(0,0,W,H);
+  const r=seeded(Math.floor(t/90));g.fillStyle="rgba(240,225,200,.18)";for(let i=0;i<4;i++)g.fillRect(r()*W,0,1.5,H);
+  g.strokeStyle="rgba(240,225,200,.5)";g.lineWidth=10;g.strokeRect(30,30,W-60,H-60);
+}
+
+/* ---- the car's own radio, in the dashboard ---- */
+function paintCarRadio(c){
+  flat(c,box(0,0,W,H),"#0b0e14",{s:1.2,ang:-4});
+  flat(c,box(0,0,W,300),"#07090d",{s:.8});
+  /* windshield sliver with the dirt road at night */
+  flat(c,[[0,0],[W,0],[W,240],[0,300]],"#0a1020",{s:.6});bar(c,[0,300],[W,240],6,INK);
+  const dash=[[0,300],[W,240],[W,H],[0,H]];flat(c,dash,"#12161e",{s:1.3,ang:-6});
+  /* vents */
+  [[190,330],[420,330]].forEach(([x,y])=>{const v=box(x,y,120,60);flat(c,v,"#07090d",{s:0});for(let i=1;i<5;i++)bar(c,[x+4,y+i*12],[x+116,y+i*12],3,"#1c222c");ink(c,v,4,{closed:true,heavy:.4})});
+  /* the head unit */
+  const hu=box(150,430,420,250);flat(c,hu,"#0a0c10",{s:.4});ink(c,hu,6,{closed:true});
+  flat(c,box(186,462,348,110),"#05140f",{s:0});ink(c,box(186,462,348,110),4,{closed:true,heavy:.3});
+  [[215,630],[505,630]].forEach(([x,y])=>{const k=[];for(let i=0;i<20;i++){const a=i/20*6.283;k.push([x+Math.cos(a)*30,y+Math.sin(a)*30])}flat(c,k,"#1a1f28",{s:.3});ink(c,k,4,{closed:true,heavy:.4});bar(c,[x,y-26],[x,y-12],4,"#9aa3ad")});
+  for(let i=0;i<5;i++){const b=box(268+i*38,608,30,22);flat(c,b,"#1a1f28",{s:0});ink(c,b,2.6,{closed:true,heavy:.3})}
+  /* his hand on the wheel, at the edge of the frame */
+  const wh=[];for(let i=0;i<30;i++){const a=Math.PI*.55+i/29*Math.PI*.9;wh.push([-120+Math.cos(a)*-260,860+Math.sin(a)*-300])}
+  ink(c,wh,30,{col:"#05070b",heavy:.2});
+  const hd=cat([[70,620],[120,600],[150,640],[130,700],[80,700]],true,4);flat(c,hd,KITS.fridge.skin,{s:0});ink(c,hd,5,{closed:true,heavy:.4});
+}
+function carRadio(t){
+  plate("carRadio",paintCarRadio);
+  if(V.radioOn){
+    const live=V.radio,sn=!live;
+    g.save();g.beginPath();g.rect(186,462,348,110);g.clip();
+    g.fillStyle="rgba(120,255,190,.08)";g.fillRect(186,462,348,110);
+    sign(g,live?"۸۸٫۰":"- - . -",290,535,"400 52px Lalezar,Vazirmatn,sans-serif","#7dffc0");
+    for(let i=0;i<14;i++){const v=reduced?.5:sn?FX():Math.abs(Math.sin(t*.02+i*1.7))*Math.abs(Math.sin(t*.007+i));g.fillStyle="#7dffc0";g.fillRect(392+i*10,548-v*60,6,v*60+4)}
+    g.restore();
+    g.save();g.globalCompositeOperation="lighter";g.fillStyle="rgba(120,255,190,.08)";g.fillRect(150,430,420,250);g.restore();
+  }
+}
+/* ---- the stop, side on: the car slides, a door opens, you run ---- */
+function paintHalt(c){
+  skyBands(c,760);starsTo(c,520);
+  flat(c,[[0,760],...cat([[0,700],[180,670],[360,712],[540,676],[720,704]],false,5),[720,760]],"#090e1b",{ang:-6});
+  flat(c,box(0,740,W,540),"#0b0d0c",{ang:-3,s:1.4});
+  flat(c,box(0,900,W,120),"#2a241c",{ang:-2,s:1.3});
+  bar(c,[0,900],[W,900],3,"rgba(0,0,0,.4)");bar(c,[0,1020],[W,1020],3,"rgba(0,0,0,.4)");
+}
+function halt(t){
+  plate("halt",paintHalt);
+  const x=V.car,s=1.5,y=990;
+  drawCar(x,y,s);
+  g.save();g.translate(x,y);g.scale(s,s);trace(g,[[-84,-70],[-42,-112],[8,-112],[8,-70]]);g.clip();
+  g.fillStyle="#0c1118";g.fillRect(-100,-120,120,60);
+  bust(-20,-92,.1,{still:true,k:KITS.fridge,fear:0,look:0,gaze:0,blink:0});
+  g.restore();
+  if(V.pdoor)openDoor(x,y,s,1);
+  if(V.exit>0&&V.exit<1)person(x-60-V.exit*520,y+8,.2,{fear:.95,look:-.4,gaze:-.8},t);
+  if(V.speed>0||Math.abs(V.car-360)>2){g.fillStyle="rgba(200,190,170,.12)";for(let i=0;i<6;i++){g.beginPath();g.ellipse(x+150+i*30,y+20,40+i*10,14,0,0,7);g.fill()}}
+}
+/* he waits in the dark: no lights on his car, nothing on him but his eyes */
+function darkWait(){
+  const a=V.approach,s=.5+a*.9;
+  g.save();g.translate(380,705+a*70);g.scale(s,s);
+  put(cel("carSil",-205,-150,410,158,2,c=>{paintCar(c);c.globalCompositeOperation="source-atop";c.fillStyle="rgba(2,3,5,.9)";c.fillRect(-300,-300,600,600)}));
+  g.restore();
+  const os=.07+a*.22;
+  g.save();g.translate(300,700+a*200);g.scale(os,os);
+  put(cel("shade",-185,-565,370,1095,1.4,paintShade));
+  gel(g,-24,-420,5,.95);gel(g,24,-420,5,.95);
+  g.restore();
+}
+
 /* ---- night three plates ---- */
 function paintFrontShards(c){
   const r=seeded(91),cx=360,cy=560,edge=[];
@@ -2147,6 +2372,11 @@ const SHOT={
       g.restore();
     }
   },
+  road(t){roadScene(t,false)},
+  carRadio(t){carRadio(t)},
+  halt(t){halt(t)},
+  dirt(t){roadScene(t,true)},
+  flash(t){flashback(t)},
   /* inside the shop, behind him: he fights the door, then goes through the glass */
   inside(t){
     plate("watchN",c=>paintWatch(c,0));
@@ -2170,7 +2400,12 @@ const SHOT={
     const since=performance.now()-PHONE.buzzT,bz=since<900&&!reduced?Math.sin(t*.12)*6:0,lit=since<900||PHONE.msgs.length>0;
     g.save();g.translate(360+bz,560);g.rotate(-.05+(bz?.01*Math.sin(t*.2):0));
     put(cel("phoneBig",-215,-330,430,1040,2,paintPhoneBig));
-    g.fillStyle=lit?"#1d2633":"#06080b";g.fillRect(-146,-296,292,610);
+    g.fillStyle=lit&&!PHONE.dead?"#1d2633":"#06080b";g.fillRect(-146,-296,292,610);
+    if(PHONE.dead){
+      /* an empty battery, blinking, then nothing */
+      if(reduced||Math.floor(t/600)%2===0){g.strokeStyle="#c43a2e";g.lineWidth=6;g.strokeRect(-46,-24,84,48);g.fillStyle="#c43a2e";g.fillRect(40,-10,10,20);g.fillRect(-40,-18,12,36)}
+      g.restore();return;
+    }
     if(lit){
       g.fillStyle="#2c3746";g.fillRect(-146,-296,292,62);
       g.direction="rtl";g.textAlign="center";g.font="700 24px Vazirmatn,Tahoma,sans-serif";g.fillStyle="#e9edf2";g.fillText("شماره ناشناس",0,-256);
@@ -2197,12 +2432,17 @@ const SHOT={
   /* the front seats, seen through the windshield: you drive, he watches you */
   seats(t){
     plate("carFB",paintCarFrontBack);
-    const dk=V.dome?KITS.on:KITS.off;
+    if(V.day>0){g.save();g.globalCompositeOperation="lighter";g.fillStyle="rgba(170,130,110,"+(.22*sat(V.day))+")";g.fillRect(0,0,W,H);g.restore()}
+    const dk=V.dome||V.day>.5?KITS.on:V.moving||V.sleep?KITS.fridge:KITS.off;
     g.save();trace(g,WS);g.clip();
     if(V.rear){g.save();g.beginPath();g.rect(150,400,420,166);g.clip();officerAt(360,512,.2,jaw());g.fillStyle="rgba(4,6,12,.4)";g.fillRect(150,400,420,166);g.restore()}
     if(V.dome){g.save();g.globalCompositeOperation="lighter";g.fillStyle="rgba(255,205,120,.12)";trace(g,[[330,372],[390,372],[600,760],[120,760]]);g.fill();g.restore()}
-    bust(270,612,.36,{still:true,k:dk,fear:0,look:.9,gaze:1,blink:0});
-    bust(452,618,.36,{k:dk,look:-.45,gaze:-.85});
+    /* who drives changes after the nap; he always looks where he means to: at you, then at the road */
+    const sw=V.swap4,jy=V.moving&&!reduced?Math.sin(t*.031)*2.5:0;
+    const dbl={still:true,k:dk,fear:0,look:sw?0:.9,gaze:sw?0:1,blink:0};
+    const me=V.sleep?{still:true,k:dk,fear:0,look:0,gaze:0,blink:1}:{k:dk,look:sw?.45:-.45,gaze:sw?.85:-.85};
+    bust(270,612+jy,.36,sw?me:dbl);
+    bust(452,618+jy,.36,sw?dbl:me);
     g.restore();
     plate("carFF",paintCarFrontFront);
     g.fillStyle="#0b0f16";g.fillRect(338,372,44,16);
@@ -2449,11 +2689,12 @@ const SHOT={
   },
 };
 function flatFill(col){g.fillStyle=col;g.fillRect(-60,-60,W+120,H+120)}
-const FOCUS={inside:[360,640],phone:[360,600],seats:[360,640],shelf:[360,640],carview:[360,560],reflect:[360,560],watch:[372,760],driver:[245,540],glass:[360,620],hero:[360,560],door:[360,470],pair:[360,500],peek:[440,760],front:[360,560],radio:[360,620],floor:[360,800],fridge:[360,620],cabin:[360,560],lobby:[360,600],highway:[360,620]};
+const FOCUS={carRadio:[360,560],halt:[360,900],road:[360,640],dirt:[360,640],flash:[360,600],inside:[360,640],phone:[360,600],seats:[360,640],shelf:[360,640],carview:[360,560],reflect:[360,560],watch:[372,760],driver:[245,540],glass:[360,620],hero:[360,560],door:[360,470],pair:[360,500],peek:[440,760],front:[360,560],radio:[360,620],floor:[360,800],fridge:[360,620],cabin:[360,560],lobby:[360,600],highway:[360,620]};
 /* The camera has its own idea per shot; at the door it does not move at all. */
 const CAM={
   hero:a=>[1+.06*sat(a/11000),0,0],
-  inside:()=>[1,0,0],phone:a=>[1+.03*sat(a/9000),0,0],seats:a=>[1+.04*sat(a/12000),0,0],shelf:()=>[1.02,0,0],carview:()=>[1,0,0],watch:()=>[1,0,0],glass:()=>[1,0,0],reflect:a=>[1+.03*sat(a/8000),0,0],driver:a=>[1+.05*sat(a/9000),0,0],
+  carRadio:a=>[1+.04*sat(a/8000),0,0],halt:()=>[1,0,0],road:a=>[1,0,reduced?0:Math.sin(a*.02)*1.5],dirt:a=>[1.02,V.fast&&!reduced?Math.sin(a*.05)*4:0,reduced?0:V.runpov?Math.abs(Math.sin(a*.012))*-18:Math.sin(a*.033)*(V.fast?7:3)],flash:a=>[1+.05*sat(a/6000),0,0],
+  inside:()=>[1,0,0],phone:a=>[1+.03*sat(a/9000),0,0],seats:a=>[1+.04*sat(a/12000),0,V.moving&&!reduced?Math.sin(a*.04)*2:0],shelf:()=>[1.02,0,0],carview:()=>[1,0,0],watch:()=>[1,0,0],glass:()=>[1,0,0],reflect:a=>[1+.03*sat(a/8000),0,0],driver:a=>[1+.05*sat(a/9000),0,0],
   door:()=>[1,0,0],pair:()=>[1,0,0],front:()=>[1,0,0],cabin:()=>[1,0,0],
   highway:a=>[1+.03*sat(a/16000),0,-12*sat(a/16000)],
   peek:a=>[1.015+Math.sin(a*.00045)*.01,Math.sin(a*.0003)*(4+V.fear*5),0],
